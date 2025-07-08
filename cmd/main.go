@@ -49,6 +49,7 @@ func main() {
 			log.Printf("Failed to write response: %v", err)
 		}
 	})
+	r.Post("/queue", internal.JoinQueueHandler(redisClient))
 
 	// Get server port
 	serverPort := os.Getenv("SERVER_PORT")

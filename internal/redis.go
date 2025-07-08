@@ -2,14 +2,23 @@ package internal
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/redis/go-redis/v9"
 )
 
-type RedisClient struct {
-	Client *redis.Client
-	Ctx    context.Context
+func (r *RedisClient) PushPlayerToQueue(player *Player) any {
+	data, err := json.Marshal(player)
+	if err != nil {
+		return fmt.Errorf("failed to serialize player: %w", err)
+	}
+
+	if err := r.Client.RPush(r.Ctx, "matchmaking_queue", data).Err(); err != nil {
+		return fmt.Errorf("failed to push player to queue: %w", err)
+	}
+
+	return nil
 }
 
 func NewRedisClient(addr string, password string, db int) *RedisClient {
