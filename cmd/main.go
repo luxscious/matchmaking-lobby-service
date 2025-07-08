@@ -16,7 +16,7 @@ func main() {
 	log.Println("Go matchmaking service starting...")
 
 	// Load environment variables
-	if err := godotenv.Load(); err != nil {
+	if err := godotenv.Load("../.env"); err != nil {
 		log.Println("No .env file found, relying on environment variables.")
 	}
 
@@ -43,7 +43,7 @@ func main() {
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
-
+	r.Get("/ws/{playerID}", internal.WebSocketHandler)
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		if _, err := w.Write([]byte("Matchmaking API is up!")); err != nil {
 			log.Printf("Failed to write response: %v", err)
@@ -60,4 +60,5 @@ func main() {
 	if err := http.ListenAndServe(":"+serverPort, r); err != nil {
 		log.Fatalf("Server failed to start: %v", err)
 	}
+
 }
