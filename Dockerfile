@@ -1,5 +1,5 @@
 # Start from the official Golang image
-FROM golang:latest
+FROM golang:latest as builder
 
 # Set the working directory
 WORKDIR /app
@@ -13,11 +13,15 @@ RUN go mod download
 # Copy the rest of your code
 COPY . .
 
-# Build the Go binary
-RUN go build -o matchmaking ./cmd
+# Stage 2 - Minimal runtime
+FROM gcr.io/distroless/base-debian11
 
-# Expose the port (make sure it matches SERVER_PORT)
+WORKDIR /app
+
+COPY --from=builder /app/matchmaking .
+
+# Expose the port your app uses
 EXPOSE 8080
 
-# Command to run the binary
-CMD ["./matchmaking"]
+# Run the binary
+ENTRYPOINT ["/app/matchmaking"]

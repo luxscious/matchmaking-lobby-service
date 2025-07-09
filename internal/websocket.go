@@ -3,6 +3,7 @@ package internal
 import (
 	"log"
 	"net/http"
+	"os"
 	"sync"
 
 	"github.com/go-chi/chi/v5"
@@ -21,7 +22,8 @@ var (
 // The upgrader checks the origin of the request to allow or deny the upgrade.
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
-		return true
+		origin := os.Getenv("FRONTEND_ORIGIN")
+		return r.Header.Get("Origin") == origin
 	},
 }
 
@@ -65,6 +67,7 @@ func WebSocketHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// NotifyPlayerLobby sends a message to the player when a lobby is created.
 func NotifyPlayerLobby(playerID, lobbyID string) error {
 	clientsMutex.RLock()
 	conn, exists := clients[playerID]
