@@ -14,7 +14,7 @@ COPY . ./
 # Build the binary, specifying the path to main.go
 RUN go build -o matchmaking ./cmd
 
-FROM gcr.io/distroless/base-debian11
+FROM debian:bookworm-slim
 
 WORKDIR /app
 
