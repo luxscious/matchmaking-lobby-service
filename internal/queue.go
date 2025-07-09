@@ -26,7 +26,15 @@ func JoinQueueHandler(redisClient *RedisClient) http.HandlerFunc {
 			http.Error(w, "skill_rating must be > 0", http.StatusBadRequest)
 			return
 		}
+		// Check if player is connected via WebSocket
+		clientsMutex.RLock()
+		_, connected := clients[p.PlayerID]
+		clientsMutex.RUnlock()
 
+		if !connected {
+			http.Error(w, "Player must be connected via WebSocket before queuing", http.StatusBadRequest)
+			return
+		}
 		// Store in Redis queue
 		if err := redisClient.PushPlayerToQueue(&p); err != nil {
 			http.Error(w, fmt.Sprintf("Failed to enqueue player: %v", err), http.StatusInternalServerError)

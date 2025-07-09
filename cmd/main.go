@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"os"
@@ -39,6 +40,13 @@ func main() {
 		}
 	}()
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Start the matchmaking loop
+	log.Println("Starting matchmaking loop...")
+	internal.StartMatchmakingLoop(ctx, redisClient)
+
 	// Setup router
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
@@ -58,6 +66,7 @@ func main() {
 	}
 
 	log.Printf("Listening on :%s...", serverPort)
+
 	if err := http.ListenAndServe(":"+serverPort, r); err != nil {
 		log.Fatalf("Server failed to start: %v", err)
 	}
