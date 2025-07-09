@@ -57,6 +57,7 @@ func main() {
 			log.Printf("Failed to write response: %v", err)
 		}
 	})
+	r.Get("/lobbies/{lobbyID}", internal.GetLobbyHandler(redisClient))
 	r.Post("/queue", internal.JoinQueueHandler(redisClient))
 
 	// Get server port

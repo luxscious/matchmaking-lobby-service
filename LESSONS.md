@@ -19,3 +19,11 @@
 ✅ How to create lobbies and persist them in Redis with clean JSON structures
 ✅ How to send real-time notifications to WebSocket clients when a lobby is created
 ✅ How to test deterministic matchmaking behavior using isolated Redis containers (testcontainers-go)
+
+## REST Endpoint: Lobby Retrieval #43
+
+✅ How to cleanly separate HTTP handling from Redis logic
+✅ How to handle redis.Nil and return proper 404 JSON errors
+✅ How to use httptest.NewServer for deterministic end-to-end tests
+✅ Importance of consistent JSON structures between storage and API responses
+✅ Clear error mapping and structured error responses improve client experience

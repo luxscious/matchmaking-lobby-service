@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/go-chi/chi/v5"
@@ -137,7 +138,11 @@ func TestNotifyPlayerLobby(t *testing.T) {
 	// Start Redis container
 	redisC, endpoint, err := startRedisContainer(ctx)
 	assert.NoError(t, err)
-	defer redisC.Terminate(ctx)
+	defer func() {
+		if err := redisC.Terminate(ctx); err != nil {
+			t.Errorf("failed to terminate redis container: %v", err)
+		}
+	}()
 
 	// Redis client
 	rdb := redis.NewClient(&redis.Options{Addr: endpoint})
@@ -182,4 +187,66 @@ func TestNotifyPlayerLobby(t *testing.T) {
 	// Validate contents
 	assert.Equal(t, "lobby_created", notif["type"])
 	assert.NotEmpty(t, notif["lobby_id"])
+}
+
+func TestGetLobbyHandler(t *testing.T) {
+	ctx := context.Background()
+
+	// Start Redis container
+	redisC, endpoint, err := startRedisContainer(ctx)
+	assert.NoError(t, err)
+	defer redisC.Terminate(ctx)
+
+	// Redis client
+	rdb := redis.NewClient(&redis.Options{Addr: endpoint})
+	redisClient := &RedisClient{Client: rdb, Ctx: ctx}
+
+	// Enqueue 5 players
+	playerIDs := []string{}
+	for i := 1; i <= 5; i++ {
+		id := fmt.Sprintf("player%d", i)
+		playerIDs = append(playerIDs, id)
+		p := &Player{
+			PlayerID:    id,
+			SkillRating: 1400 + i*10,
+		}
+		err := redisClient.PushPlayerToQueue(p)
+		assert.NoError(t, err)
+	}
+
+	// Run matchmaking
+	err = MatchPlayers(ctx, redisClient)
+	assert.NoError(t, err)
+
+	// Find created lobby key
+	keys, err := rdb.Keys(ctx, "lobby:*").Result()
+	assert.NoError(t, err)
+	assert.Len(t, keys, 1)
+
+	// Extract lobby ID
+	lobbyKey := keys[0]
+	lobbyID := lobbyKey[len("lobby:"):]
+
+	// Create router
+	router := chi.NewRouter()
+	router.Get("/lobbies/{lobbyID}", GetLobbyHandler(redisClient))
+
+	// Create test server
+	ts := httptest.NewServer(router)
+	defer ts.Close()
+
+	// Fetch lobby via REST API
+	res, err := http.Get(ts.URL + "/lobbies/" + lobbyID)
+	assert.NoError(t, err)
+	defer res.Body.Close()
+
+	assert.Equal(t, http.StatusOK, res.StatusCode)
+
+	var got Lobby
+	err = json.NewDecoder(res.Body).Decode(&got)
+	assert.NoError(t, err)
+
+	// Validate lobby metadata
+	assert.Equal(t, lobbyID, got.LobbyID)
+	assert.ElementsMatch(t, playerIDs, got.PlayerIDs)
 }

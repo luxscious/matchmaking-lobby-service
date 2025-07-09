@@ -1,40 +1,41 @@
 package internal
 
 import (
-	"context"
 	"encoding/json"
-	"fmt"
 	"log"
+	"net/http"
 
-	"github.com/google/uuid"
+	"github.com/go-chi/chi/v5"
 )
 
-// Creates a new lobby with the given players.
-// Returns the Lobby object as a pointer or an error if creation fails.
-func (r *RedisClient) CreateLobby(ctx context.Context, players []*Player) (*Lobby, error) {
-	lobbyID := uuid.NewString()
+func GetLobbyHandler(redisClient *RedisClient) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		lobbyID := chi.URLParam(r, "lobbyID")
+		if lobbyID == "" {
+			http.Error(w, "lobby ID is required", http.StatusBadRequest)
+			return
+		}
 
-	playerIDs := []string{}
+		lobby, err := redisClient.GetLobby(lobbyID)
+		if err != nil {
+			log.Printf("Failed to fetch lobby: %v", err)
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		if lobby == nil {
+			w.WriteHeader(http.StatusNotFound)
+			if err := json.NewEncoder(w).Encode(map[string]string{
+				"error": "lobby not found",
+			}); err != nil {
+				log.Printf("Failed to encode not found response: %v", err)
+			}
+			return
+		}
 
-	for _, player := range players {
-		playerIDs = append(playerIDs, player.PlayerID)
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(lobby); err != nil {
+			log.Printf("Failed to encode lobby response: %v", err)
+			http.Error(w, "internal error", http.StatusInternalServerError)
+		}
 	}
-
-	lobby := Lobby{
-		LobbyID:   lobbyID,
-		PlayerIDs: playerIDs,
-	}
-
-	data, err := json.Marshal(lobby)
-	if err != nil {
-		log.Printf("failed to serialize lobby: %v", err)
-		return nil, err
-	}
-
-	key := fmt.Sprintf("lobby:%s", lobbyID)
-	if err := r.Client.Set(ctx, key, data, 0).Err(); err != nil {
-		log.Printf("failed to store lobby in Redis: %v", err)
-		return nil, err
-	}
-	return &lobby, nil
 }
