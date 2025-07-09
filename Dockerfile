@@ -1,27 +1,25 @@
-# Start from the official Golang image
-FROM golang:latest as builder
+# Stage 1 - Build
+FROM golang:1.22 AS builder
 
-# Set the working directory
 WORKDIR /app
 
-# Copy go.mod and go.sum first (to leverage Docker cache)
-COPY go.mod go.sum ./
-
-# Download dependencies
+# Copy go.mod and go.sum first
+COPY go.mod ./
+COPY go.sum ./
 RUN go mod download
 
-# Copy the rest of your code
-COPY . .
+# Copy everything
+COPY . ./
 
-# Stage 2 - Minimal runtime
+# Build the binary, specifying the path to main.go
+RUN go build -o matchmaking ./cmd
+
 FROM gcr.io/distroless/base-debian11
 
 WORKDIR /app
 
 COPY --from=builder /app/matchmaking .
 
-# Expose the port your app uses
 EXPOSE 8080
 
-# Run the binary
 ENTRYPOINT ["/app/matchmaking"]
